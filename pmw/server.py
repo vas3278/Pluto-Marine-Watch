@@ -28,7 +28,7 @@ class Store:
         with closing(self.connect()) as db, db:
             return db.execute('UPDATE events SET status=? WHERE id=?',(status,id)).rowcount==1
 
-def handler(store, simulator=None):
+def handler(store, simulator=None, receiver=None):
     class Handler(BaseHTTPRequestHandler):
         def send(self, data, status=200, kind='application/json'):
             body=json.dumps(data,ensure_ascii=False).encode() if kind=='application/json' else data.encode()
@@ -36,8 +36,9 @@ def handler(store, simulator=None):
         def do_GET(self):
             p=urlsplit(self.path); q=parse_qs(p.query)
             if p.path=='/': return self.send(Path(__file__).with_name('index.html').read_text(encoding='utf-8'),kind='text/html')
-            if p.path=='/api/v1/health': return self.send({'version':'0.0.4','mode':'simulation' if simulator else 'offline','radio':'not_connected','navigation':'simulated' if simulator else 'not_connected','ais':'simulated' if simulator else 'not_connected','asr':'not_connected'})
+            if p.path=='/api/v1/health': return self.send({'version':'0.0.5','mode':'simulation' if simulator else ('network' if receiver else 'offline'),'radio':'not_connected','navigation':'simulated' if simulator else (receiver.snapshot()['connection'] if receiver else 'not_connected'),'ais':'simulated' if simulator else 'not_connected','asr':'not_connected'})
             if p.path=='/api/v1/simulation': return self.send(simulator.snapshot() if simulator else {'simulated':False})
+            if p.path=='/api/v1/navigation' and receiver: return self.send(receiver.snapshot())
             if p.path=='/api/v1/navigation' and simulator: return self.send(simulator.snapshot()['navigation'])
             if p.path=='/api/v1/ais/targets' and simulator: return self.send(simulator.snapshot()['targets'])
             if p.path=='/api/v1/navigation': return self.send({'valid':False,'source':None,'position':None,'heading':None,'cog':None,'sog':None})
@@ -58,11 +59,16 @@ def handler(store, simulator=None):
     return Handler
 
 def main():
-    p=argparse.ArgumentParser(); p.add_argument('--port',type=int,default=8080); p.add_argument('--db',default='data/pmw.sqlite'); p.add_argument('--demo',action='store_true'); a=p.parse_args()
+    p=argparse.ArgumentParser(); p.add_argument('--port',type=int,default=8080); p.add_argument('--db',default='data/pmw.sqlite'); mode=p.add_mutually_exclusive_group(); mode.add_argument('--demo',action='store_true'); mode.add_argument('--nmea'); a=p.parse_args()
     Path(a.db).parent.mkdir(parents=True,exist_ok=True); s=Store(a.db)
     from .simulator import Simulator
     simulator=Simulator() if a.demo else None
     if a.demo: s.seed()
-    print(f'PMW: http://127.0.0.1:{a.port} (simulation only)',flush=True)
-    ThreadingHTTPServer(('127.0.0.1',a.port),handler(s, simulator)).serve_forever()
+    receiver=None
+    if a.nmea:
+        from .nmea import Receiver
+        import threading
+        receiver=Receiver(a.nmea); threading.Thread(target=receiver.run,daemon=True).start()
+    print(f'PMW: http://127.0.0.1:{a.port} (local web interface)',flush=True)
+    ThreadingHTTPServer(('127.0.0.1',a.port),handler(s, simulator, receiver)).serve_forever()
 if __name__=='__main__': main()
