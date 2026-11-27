@@ -1,11 +1,5 @@
-# Pluto Marine Watch v0.0.2
-Стендовый каркас, Python 3.10+, без сторонних зависимостей. Не навигационное средство.
+# Pluto Marine Watch v0.0.4
 
-## Запуск
-Из корня проекта: `python -m pmw.server --demo`. Открыть http://127.0.0.1:8080. Остановка Ctrl+C. Без `--demo` новая база пуста. Данные сохраняются в data/pmw.sqlite. Тесты: `python -m unittest discover -s tests -v`.
+Python 3.10+, no third-party dependencies. Run `python -m pmw.server --demo --db data/demo.sqlite` and open http://127.0.0.1:8080. Tests: `python -m unittest discover -s tests -v`.
 
-## Реализовано
-SQLite, синтетическая запись, поиск и фильтр, статусы, локальный HTTP API, диагностика отсутствующих источников. Конфигурация каналов справочная, пока не используется SDR. Сервер только loopback; аутентификация и TLS отсутствуют, не публиковать в судовую сеть. Нет подключения Pluto, AIS, NMEA, аудио или ASR. Нет истории правок статуса. Следующий этап: симулятор потоков и нормализация навигации. Лицензия пока не утверждена.
-
-## GitHub
-Создать пустой репозиторий, затем `git init`, `git add .`, `git commit -m "PMW v0.0.2"`, `git branch -M main`, `git remote add origin <URL>`, `git push -u origin main`. CI настроен, но удалённый запуск не проверен.
+Synthetic own ship, three AIS-like targets, RMC/HDT, local plot, range/orientation, bearings and CPA/TCPA. Negative TCPA means past closest approach; CPA is constrained to future time. Not for navigation. No real radio, AIS or NMEA input yet. Localhost only; no authentication. License not yet approved.
